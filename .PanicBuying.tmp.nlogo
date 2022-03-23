@@ -1,5 +1,5 @@
 breed [ humans human ]
-humans-own [ influenced-prob fear-unknown ]
+humans-own [ influenced-prob fear-unknown status food-capacity ]
 
 to setup
   clear-all
@@ -10,7 +10,12 @@ to setup
 
   ;; set influenced-prob & fear-unknown for every human between 0 to 1.
   ;; higher = more likely to be influenced & higher fear of the unknown
-  ask humans [ set influenced-prob random 10 / 10  set fear-unknown random 10 / 10]
+  ask humans [
+    set influenced-prob random 10 / 10
+    set fear-unknown random 10 / 10
+    set food-capacity 10
+  ]
+
 
   ;; size of supermarket – 31 x 31
   ask patches with [pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15 ] [
@@ -35,6 +40,9 @@ end
 
 to go
   tick
+  s
+  ask humans [ set status "moving" ]
+  ask humans with [ pcolor = white or pcolor = red ] [ set status "at the supermarket" ]
 
 end
 @#$#@#$#@
@@ -64,21 +72,6 @@ GRAPHICS-WINDOW
 1
 ticks
 30.0
-
-SLIDER
-20
-52
-192
-85
-fear-unknown
-fear-unknown
-0
-1
-1.0
-0.1
-1
-NIL
-HORIZONTAL
 
 BUTTON
 240
@@ -132,14 +125,29 @@ NIL
 1
 
 CHOOSER
-237
-176
-375
-221
+29
+110
+167
+155
 event-type
 event-type
 "rumour" "pandemic"
 0
+
+SLIDER
+29
+37
+201
+70
+vision-radius
+vision-radius
+0
+30
+8.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
