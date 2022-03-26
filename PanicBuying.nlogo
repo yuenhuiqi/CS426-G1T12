@@ -1,16 +1,23 @@
 breed [ humans human ]
-humans-own [ influenced-prob fear-unknown ]
+humans-own [
+  influenced-prob
+  fear-factor
+  fitness
+  panic-buy
+  food-consump
+  satisfaction
+]
 
 to setup
   clear-all
   reset-ticks
 
   ;; 100 humans, positioned randomly
-  create-humans 100 [ set shape "person" setxy random 51 - 30 random 51 - 30]
+  create-humans human-popln [ set shape "person" setxy random-xcor random-ycor]
 
   ;; set influenced-prob & fear-unknown for every human between 0 to 1.
   ;; higher = more likely to be influenced & higher fear of the unknown
-  ask humans [ set influenced-prob random 10 / 10  set fear-unknown random 10 / 10]
+  ask humans [  ]
 
   ;; size of supermarket – 31 x 31
   ask patches with [pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15 ] [
@@ -26,23 +33,38 @@ to setup
       ask patch (x + 1) counter [ set pcolor red ]
       set counter counter + 1 ]
   ]
-
-
-
-
 end
-
 
 to go
   tick
+
+end
+
+;; distribution of how fearful people are will be based on chapman survey
+to-report set-fear
+
+end
+
+;; be based on age for simplicity, refer to singapore satista age distribution
+to-report set-fitness
+
+end
+
+;;
+to-report perceive-sus [fit]
+
+end
+
+;; set the influence-prob based on the paper by Arafat
+to-report set-influ-prob
 
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 427
 19
-1153
-746
+1152
+745
 -1
 -1
 14.08
@@ -65,26 +87,11 @@ GRAPHICS-WINDOW
 ticks
 30.0
 
-SLIDER
-20
-52
-192
-85
-fear-unknown
-fear-unknown
-0
-1
-1.0
-0.1
-1
-NIL
-HORIZONTAL
-
 BUTTON
-240
-58
-306
-91
+24
+22
+90
+55
 NIL
 setup\n
 NIL
@@ -98,10 +105,10 @@ NIL
 1
 
 BUTTON
-329
-58
-392
-91
+100
+22
+163
+55
 NIL
 go
 NIL
@@ -115,10 +122,10 @@ NIL
 1
 
 BUTTON
-240
-112
-345
-145
+173
+23
+278
+56
 go (forever)
 go
 T
@@ -132,14 +139,29 @@ NIL
 1
 
 CHOOSER
-237
-176
-375
-221
+26
+162
+164
+207
 event-type
 event-type
 "rumour" "pandemic"
 0
+
+SLIDER
+27
+71
+272
+104
+human-popln
+human-popln
+0
+200
+100.0
+5
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
