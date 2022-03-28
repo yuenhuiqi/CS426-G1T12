@@ -1,7 +1,7 @@
 breed [ humans human ]
 humans-own [
-  influenced-prob
-  fear-factor
+  influenced-prob ;; implemented
+  fear-factor ;; implemented
   fitness
   panic-buy
   food-consump
@@ -14,10 +14,6 @@ to setup
 
   ;; 100 humans, positioned randomly
   create-humans human-popln [ set shape "person" setxy random-xcor random-ycor]
-
-  ;; set influenced-prob & fear-unknown for every human between 0 to 1.
-  ;; higher = more likely to be influenced & higher fear of the unknown
-  ask humans [  ]
 
   ;; size of supermarket – 31 x 31
   ask patches with [pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15 ] [
@@ -37,12 +33,25 @@ end
 
 to go
   tick
+  set-influ-prob
+  set-fear
 
 end
 
 ;; distribution of how fearful people are will be based on chapman survey
-to-report set-fear
-
+;; fear: how likely an individual will panic buy due to fear of uncertainty
+;; totally disagree: 25.3% // disagree: 42.7% // neutral: 6.65% // agree: 15.7% // totally agree: 9.65%
+to set-fear
+  ask humans [
+    let j random 11 / 10
+    ( ifelse
+      j <= 0.253 [ set fear-factor 1 ] ;; totally disagree
+      j <= 0.68 [ set fear-factor 2 ] ;; disagree
+      j <= 0.7465 [ set fear-factor 3 ] ;; neutral
+      j <= 0.9035 [ set fear-factor 4 ] ;; agree
+      j <= 1 [ set fear-factor 5 ] ;; totally agree
+    )
+  ]
 end
 
 ;; be based on age for simplicity, refer to singapore satista age distribution
@@ -56,15 +65,26 @@ to-report perceive-sus [fit]
 end
 
 ;; set the influence-prob based on the paper by Arafat
-to-report set-influ-prob
-
+;; influence-prob: how likely an individual will be influenced to panic buy by social media posts
+;; totally disagree: 32.4% // disagree: 44.6% // neutral: 6.9% // agree: 11.8% // totally agree: 4.3%
+to set-influ-prob
+  ask humans [
+    let i random 11 / 10
+    ( ifelse
+      i <= 0.324 [ set influenced-prob 1 ] ;; totally disagree
+      i <= 0.77 [ set influenced-prob 2 ] ;; disagree
+      i <= 0.839 [ set influenced-prob 3 ] ;; neutral
+      i <= 0.957 [ set influenced-prob 4 ] ;; agree
+      i <= 1 [ set influenced-prob 5 ] ;; totally agree
+    )
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 427
 19
-1152
-745
+1153
+746
 -1
 -1
 14.08
