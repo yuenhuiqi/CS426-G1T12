@@ -1,6 +1,6 @@
 breed [ humans human ]
 humans-own [
-  influenced-prob ;; implemented
+  influenced-factor ;; implemented
   fear-factor ;; implemented
   fitness
   panic-buy
@@ -71,11 +71,11 @@ to set-influ-prob
   ask humans [
     let i random 11 / 10
     ( ifelse
-      i <= 0.324 [ set influenced-prob 1 ] ;; totally disagree
-      i <= 0.77 [ set influenced-prob 2 ] ;; disagree
-      i <= 0.839 [ set influenced-prob 3 ] ;; neutral
-      i <= 0.957 [ set influenced-prob 4 ] ;; agree
-      i <= 1 [ set influenced-prob 5 ] ;; totally agree
+      i <= 0.324 [ set influenced-factor 1 ] ;; totally disagree
+      i <= 0.77 [ set influenced-factor 2 ] ;; disagree
+      i <= 0.839 [ set influenced-factor 3 ] ;; neutral
+      i <= 0.957 [ set influenced-factor 4 ] ;; agree
+      i <= 1 [ set influenced-factor 5 ] ;; totally agree
     )
   ]
 end
