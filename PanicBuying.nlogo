@@ -1,11 +1,17 @@
+globals [ outside-patches supermarket-patches ]
+
 breed [ humans human ]
+
 humans-own [
-  influenced-factor ;; implemented
-  fear-factor ;; implemented
-  fitness
-  panic-buy
-  food-consump
-  satisfaction
+  influenced-factor ;; done
+  perceived-scarcity ;; done
+  panic-buy-prob
+  panic-buying?
+  ;; satisfaction   ;; implement later only if there's time
+  num-relatives ;; number of links to other agents that are panic buying
+  num-radius ;; number of agents in vision radius that are panic buying
+  relatives-factor
+  radius-factor
 ]
 
 to setup
@@ -13,72 +19,147 @@ to setup
   reset-ticks
 
   ;; 100 humans, positioned randomly
-  create-humans human-popln [ set shape "person" setxy random-xcor random-ycor]
+  create-humans human-popln [ set shape "person" set color white ]
 
   ;; size of supermarket – 31 x 31
-  ask patches with [pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15 ] [
-    set pcolor 9.9
+  ask patches [
+    ifelse pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15
+    [ set pcolor blue ]
+    [ set pcolor green ]
   ]
 
-  ;; setting up of aisle – leaving the code here for aesthetic purposes first, can use later if need.
-  foreach [-10 -5 0 5 10] [
-    x ->
-    let counter -10
-    while [counter <= 10] [
-      ask patch x counter [ set pcolor red ]
-      ask patch (x + 1) counter [ set pcolor red ]
-      set counter counter + 1 ]
+  set outside-patches patches with [pcolor = green]
+
+  ask humans [
+    move-to one-of outside-patches
   ]
+
 end
 
 to go
   tick
-  set-influ-prob
-  set-fear
+
+
+
+  set-influenced-factor ;; social factor – how easily an agent is to be influenced to panic buying (scale: 1-5)
+  set-perceived-scarcity ;; psychological factor – perceived scarcity of an agent (scale: 1-5)
+  ;; set-relatives-factor ;; social factor – number of relatives that are panic buying (scale: 1-5)
+  ;; set-radius-factor ;; social factor – number of agents in its vision radius that are panic buying (scale: 1-5)
+
+  compute-panic-buy-prob
+
+  trigger-panic-buy
+
+  ask humans [ ifelse panic-buying? [set color red ] [set color white ] ]
 
 end
 
-;; distribution of how fearful people are will be based on chapman survey
-;; fear: how likely an individual will panic buy due to fear of uncertainty
-;; totally disagree: 25.3% // disagree: 42.7% // neutral: 6.65% // agree: 15.7% // totally agree: 9.65%
-to set-fear
+
+to compute-panic-buy-prob
+
+  ask humans [
+
+    let social-factors 1 / 3 * ( influenced-factor )  +  1 / 3 * ( relatives-factor ) +  1 / 3 * ( radius-factor )
+    let psychological-factors perceived-scarcity
+
+    ( ifelse
+
+      ;; if normal – affected by relatives & radius factor only
+      event-type = "normal" [ set panic-buy-prob 1 / 2 * relatives-factor + 1 / 2 * radius-factor ]
+
+      ;; if rumour – 100% social factors
+      event-type = "rumour" [ set panic-buy-prob social-factors ]
+
+      ;; if pandemic – 76.4% social factors 23.6% psychological factors
+      event-type = "pandemic" [ set panic-buy-prob 0.764 * social-factors + 0.236 * psychological-factors ]
+
+    )
+  ]
+
+end
+
+to set-relatives-factor
+
+  let max-num-relatives 0
+
+  ask humans [
+
+    ;; find the max number of relatives across all agents
+
+    ;; compute relatives-factor
+    set relatives-factor num-relatives / max-num-relatives
+
+  ]
+
+
+end
+
+to set-radius-factor
+
+  let max-num-radius 0
+
+  ask humans [
+
+    ;; find the max number of agents in vision radius across all agents
+
+
+    ;; compute radius-factor
+    set radius-factor num-radius / max-num-radius
+
+  ]
+
+end
+
+
+;; set the perceived-scarcity based on the paper by Hu
+;; perceived-scarcity: how likely an individual will be influenced to panic buy given their perceived scarcity
+;; strongly disagree: 25.6% // disagree: 18.7% // neutral: 25.1% // agree: 18.1% // strongly agree: 12.5%
+to set-perceived-scarcity
   ask humans [
     let j random 11 / 10
     ( ifelse
-      j <= 0.253 [ set fear-factor 1 ] ;; totally disagree
-      j <= 0.68 [ set fear-factor 2 ] ;; disagree
-      j <= 0.7465 [ set fear-factor 3 ] ;; neutral
-      j <= 0.9035 [ set fear-factor 4 ] ;; agree
-      j <= 1 [ set fear-factor 5 ] ;; totally agree
+      j <= 0.256 [ set perceived-scarcity 1 / 5 ] ;; strongly disagree
+      j <= 0.443 [ set perceived-scarcity 2 / 5 ] ;; disagree
+      j <= 0.694 [ set perceived-scarcity 3 / 5 ] ;; neutral
+      j <= 0.875 [ set perceived-scarcity 4 / 5] ;; agree
+      j <= 1 [ set perceived-scarcity 5 / 5 ] ;; strongly agree
     )
   ]
 end
 
-;; be based on age for simplicity, refer to singapore satista age distribution
-to-report set-fitness
-
-end
-
-;;
-to-report perceive-sus [fit]
-
-end
-
-;; set the influence-prob based on the paper by Arafat
+;; set the influenced-factor based on the paper by Arafat
 ;; influence-prob: how likely an individual will be influenced to panic buy by social media posts
 ;; totally disagree: 32.4% // disagree: 44.6% // neutral: 6.9% // agree: 11.8% // totally agree: 4.3%
-to set-influ-prob
+to set-influenced-factor
   ask humans [
     let i random 11 / 10
     ( ifelse
-      i <= 0.324 [ set influenced-factor 1 ] ;; totally disagree
-      i <= 0.77 [ set influenced-factor 2 ] ;; disagree
-      i <= 0.839 [ set influenced-factor 3 ] ;; neutral
-      i <= 0.957 [ set influenced-factor 4 ] ;; agree
-      i <= 1 [ set influenced-factor 5 ] ;; totally agree
+      i <= 0.324 [ set influenced-factor 1 / 5 ] ;; totally disagree
+      i <= 0.77 [ set influenced-factor 2 / 5] ;; disagree
+      i <= 0.839 [ set influenced-factor 3 / 5] ;; neutral
+      i <= 0.957 [ set influenced-factor 4 / 5] ;; agree
+      i <= 1 [ set influenced-factor 5 / 5] ;; totally agree
     )
   ]
 end
+
+
+to trigger-panic-buy
+
+  ask humans [
+    let k random 11 / 10
+    ifelse k <= panic-buy-prob [ set panic-buying? true  ] [ set panic-buying? false]
+  ]
+
+end
+
+
+
+
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 427
@@ -159,14 +240,14 @@ NIL
 1
 
 CHOOSER
-26
-162
-164
-207
+27
+244
+165
+289
 event-type
 event-type
-"rumour" "pandemic"
-0
+"normal" "rumour" "pandemic"
+2
 
 SLIDER
 27
@@ -179,6 +260,36 @@ human-popln
 200
 100.0
 5
+1
+NIL
+HORIZONTAL
+
+SLIDER
+28
+117
+200
+150
+food-consumption
+food-consumption
+1
+10
+7.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+27
+169
+199
+202
+vision-radius
+vision-radius
+1
+20
+20.0
+1
 1
 NIL
 HORIZONTAL
