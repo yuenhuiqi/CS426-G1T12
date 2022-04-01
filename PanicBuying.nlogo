@@ -1,11 +1,19 @@
+globals [ outside-patches supermarket-patches total-food-bought ]
+
 breed [ humans human ]
+
 humans-own [
-  influenced-prob
-  fear-factor
-  fitness
-  panic-buy
-  food-consump
-  satisfaction
+  influenced-factor ;; done
+  perceived-scarcity ;; done
+  food-level
+  panic-buy-prob
+  panic-buying?
+  ;; satisfaction   ;; implement later only if there's time
+  num-relatives ;; number of links to other agents that are panic buying
+  num-radius ;; number of agents in vision radius that are panic buying
+  relatives-factor
+  radius-factor
+  buying-lag-count
 ]
 
 to setup
@@ -13,58 +21,251 @@ to setup
   reset-ticks
 
   ;; 100 humans, positioned randomly
-  create-humans human-popln [ set shape "person" setxy random-xcor random-ycor]
-
-  ;; set influenced-prob & fear-unknown for every human between 0 to 1.
-  ;; higher = more likely to be influenced & higher fear of the unknown
-  ask humans [  ]
+  create-humans human-popln [ set shape "person" set color white ]
 
   ;; size of supermarket – 31 x 31
-  ask patches with [pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15 ] [
-    set pcolor 9.9
+  ask patches [
+    ifelse pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15
+    [ set pcolor blue ]
+    [ set pcolor green ]
   ]
 
-  ;; setting up of aisle – leaving the code here for aesthetic purposes first, can use later if need.
-  foreach [-10 -5 0 5 10] [
-    x ->
-    let counter -10
-    while [counter <= 10] [
-      ask patch x counter [ set pcolor red ]
-      ask patch (x + 1) counter [ set pcolor red ]
-      set counter counter + 1 ]
+  set outside-patches patches with [pcolor = green]
+  set supermarket-patches patches with [pcolor = blue]
+
+  ask humans [
+    move-to one-of outside-patches
+    set food-level 10
+    set panic-buying? false
   ]
+
 end
 
 to go
   tick
 
-end
+  set-influenced-factor ;; social factor – how easily an agent is to be influenced to panic buying (scale: 1-5)
+  set-perceived-scarcity ;; psychological factor – perceived scarcity of an agent (scale: 1-5)
 
-;; distribution of how fearful people are will be based on chapman survey
-to-report set-fear
+  ;; uncomment after implemented radius & relatives factor:
+  ;; set-relatives-factor ;; social factor – number of relatives that are panic buying (scale: 1-5)
+  ;; set-radius-factor ;; social factor – number of agents in its vision radius that are panic buying (scale: 1-5)
 
-end
+  compute-panic-buy-prob
 
-;; be based on age for simplicity, refer to singapore satista age distribution
-to-report set-fitness
+  trigger-panic-buy
 
-end
+  ask humans [ ifelse panic-buying? [set color red ] [set color white ] ]
 
-;;
-to-report perceive-sus [fit]
+  move-agents
 
-end
+  check-supermarket
 
-;; set the influence-prob based on the paper by Arafat
-to-report set-influ-prob
 
 end
+
+;; for moving agents that are NOT in the supermarket (agents on green patch)
+to move-agents
+
+  ask humans with [pcolor = green] [
+
+    ;; if agent is in panic buying mode and not in supermarket, food level doesn't decrease. straightaway head towards supermarket.
+    ifelse panic-buying? = true [
+      ifelse xcor < 0 [
+        set xcor xcor + 1
+        ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+      ]
+
+      [ set xcor xcor - 1
+        ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+      ]
+    ]
+
+    ;; if agent is not in panic buying mode, agent moving around as per normal.
+    [
+      ;; if agent's food level is less than 5 and not in supermarket, agent makes its way towards the supermarket.
+      ifelse food-level < 5 [
+        ifelse xcor < 0 [
+          set xcor xcor + 1
+          ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+        ]
+
+        [ set xcor xcor - 1
+          ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+        ]
+      ]
+
+      ;; if agent's food level is more than or equal to 5, agent moves as per normal randomly on the outside.
+      [
+        set food-level food-level - 1
+        move-to one-of outside-patches
+      ]
+    ]
+  ]
+
+end
+
+;; for moving agents that are in the supermarket (agents on blue patch)
+to check-supermarket
+
+  ask humans with [pcolor = blue] [
+    set buying-lag-count buying-lag-count + 1
+
+    ;; during first round of buying, agent buys item (2 units if normal, 10 units if panic buy)
+    (ifelse buying-lag-count = 1 [
+
+      ;; if agent is panic buying and in supermarket, increase food-level by 10.
+      ifelse panic-buying? = true [
+        set food-level food-level + 10
+        set total-food-bought total-food-bought + 10
+        move-to one-of supermarket-patches
+      ]
+
+      ;; if agent is not panic buying and in supermarket, increase food-level by 2.
+      ;; (try to research if there's any sense on how much more food people buy when they're panic buying vs. normal)
+      [ set food-level food-level + 2
+        set total-food-bought total-food-bought + 2
+      ]
+
+      ]
+
+      ;; during second round of buying, agent doesn't buy as it has already picked up items.
+      ;; this is to factor in buffer time for checkout and for agent to roam around supermarket
+      ;; for agents that are normal buying – this buffer time allows them to see if other agents are panic buying and influence them to panic buy as well.
+      buying-lag-count = 2 [
+        move-to one-of supermarket-patches
+      ]
+
+      ;; during third round of buying, agent checks out and leave supermarket. buying lag count resets
+      ;; for agents in panic buy mode, they will go back to non panic buying mode.
+      buying-lag-count = 3 [
+        move-to one-of outside-patches
+        set buying-lag-count 0
+        set panic-buying? false
+      ]
+    )
+  ]
+
+end
+
+
+to compute-panic-buy-prob
+
+  ask humans [
+
+    let social-factors 1 / 3 * ( influenced-factor )  +  1 / 3 * ( relatives-factor ) +  1 / 3 * ( radius-factor )
+    let psychological-factors perceived-scarcity
+
+    ( ifelse
+
+      ;; if normal – affected by relatives & radius factor only
+      event-type = "normal" [ set panic-buy-prob 1 / 2 * relatives-factor + 1 / 2 * radius-factor ]
+
+      ;; if rumour – 100% social factors
+      event-type = "rumour" [ set panic-buy-prob social-factors ]
+
+      ;; if pandemic – 76.4% social factors 23.6% psychological factors
+      event-type = "pandemic" [ set panic-buy-prob 0.764 * social-factors + 0.236 * psychological-factors ]
+
+    )
+  ]
+
+end
+
+to set-relatives-factor
+
+  let max-num-relatives 0
+
+  ask humans [
+
+    ;; find the max number of relatives across all agents
+
+    ;; compute relatives-factor
+    set relatives-factor num-relatives / max-num-relatives
+
+  ]
+
+
+end
+
+to set-radius-factor
+
+  let max-num-radius 0
+
+  ask humans [
+
+    ;; find the max number of agents in vision radius across all agents
+
+
+    ;; compute radius-factor
+    set radius-factor num-radius / max-num-radius
+
+  ]
+
+end
+
+
+;; set the perceived-scarcity based on the paper by Hu
+;; perceived-scarcity: how likely an individual will be influenced to panic buy given their perceived scarcity
+;; strongly disagree: 25.6% // disagree: 18.7% // neutral: 25.1% // agree: 18.1% // strongly agree: 12.5%
+to set-perceived-scarcity
+  ask humans [
+    let j random 11 / 10
+    ( ifelse
+      j <= 0.256 [ set perceived-scarcity 1 / 5 ] ;; strongly disagree
+      j <= 0.443 [ set perceived-scarcity 2 / 5 ] ;; disagree
+      j <= 0.694 [ set perceived-scarcity 3 / 5 ] ;; neutral
+      j <= 0.875 [ set perceived-scarcity 4 / 5] ;; agree
+      j <= 1 [ set perceived-scarcity 5 / 5 ] ;; strongly agree
+    )
+  ]
+end
+
+;; set the influenced-factor based on the paper by Arafat
+;; influence-prob: how likely an individual will be influenced to panic buy by social media posts
+;; totally disagree: 32.4% // disagree: 44.6% // neutral: 6.9% // agree: 11.8% // totally agree: 4.3%
+to set-influenced-factor
+  ask humans [
+    let i random 11 / 10
+    ( ifelse
+      i <= 0.324 [ set influenced-factor 1 / 5 ] ;; totally disagree
+      i <= 0.77 [ set influenced-factor 2 / 5] ;; disagree
+      i <= 0.839 [ set influenced-factor 3 / 5] ;; neutral
+      i <= 0.957 [ set influenced-factor 4 / 5] ;; agree
+      i <= 1 [ set influenced-factor 5 / 5] ;; totally agree
+    )
+  ]
+end
+
+to trigger-panic-buy
+
+  ;; only trigger panic buying if humans are not in panic buying mode
+  ask humans with [panic-buying? = false] [
+    let k random 11 / 10
+    ifelse k <= panic-buy-prob [ set panic-buying? true  ] [ set panic-buying? false ]
+  ]
+
+end
+
+to-report food-bought-count
+  report total-food-bought
+end
+
+to-report num-panic-buying
+  report count humans with [panic-buying? = true]
+end
+
+
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 427
 19
-1152
-745
+1153
+746
 -1
 -1
 14.08
@@ -139,14 +340,14 @@ NIL
 1
 
 CHOOSER
-26
-162
-164
-207
+27
+244
+165
+289
 event-type
 event-type
-"rumour" "pandemic"
-0
+"normal" "rumour" "pandemic"
+2
 
 SLIDER
 27
@@ -162,6 +363,58 @@ human-popln
 1
 NIL
 HORIZONTAL
+
+SLIDER
+28
+117
+200
+150
+food-consumption
+food-consumption
+1
+10
+7.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+27
+169
+199
+202
+vision-radius
+vision-radius
+1
+20
+20.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+31
+310
+283
+355
+Total Food Bought across Supermarket
+food-bought-count
+0
+1
+11
+
+MONITOR
+32
+374
+358
+419
+Number of Agents that are in Panic Buying Mode
+num-panic-buying
+0
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
