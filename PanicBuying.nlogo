@@ -1,10 +1,11 @@
-globals [ outside-patches supermarket-patches ]
+globals [ outside-patches supermarket-patches total-food-bought ]
 
 breed [ humans human ]
 
 humans-own [
   influenced-factor ;; done
   perceived-scarcity ;; done
+  food-level
   panic-buy-prob
   panic-buying?
   ;; satisfaction   ;; implement later only if there's time
@@ -12,6 +13,7 @@ humans-own [
   num-radius ;; number of agents in vision radius that are panic buying
   relatives-factor
   radius-factor
+  buying-lag-count
 ]
 
 to setup
@@ -29,9 +31,12 @@ to setup
   ]
 
   set outside-patches patches with [pcolor = green]
+  set supermarket-patches patches with [pcolor = blue]
 
   ask humans [
     move-to one-of outside-patches
+    set food-level 10
+    set panic-buying? false
   ]
 
 end
@@ -39,10 +44,10 @@ end
 to go
   tick
 
-
-
   set-influenced-factor ;; social factor – how easily an agent is to be influenced to panic buying (scale: 1-5)
   set-perceived-scarcity ;; psychological factor – perceived scarcity of an agent (scale: 1-5)
+
+  ;; uncomment after implemented radius & relatives factor:
   ;; set-relatives-factor ;; social factor – number of relatives that are panic buying (scale: 1-5)
   ;; set-radius-factor ;; social factor – number of agents in its vision radius that are panic buying (scale: 1-5)
 
@@ -51,6 +56,95 @@ to go
   trigger-panic-buy
 
   ask humans [ ifelse panic-buying? [set color red ] [set color white ] ]
+
+  move-agents
+
+  check-supermarket
+
+
+end
+
+;; for moving agents that are NOT in the supermarket (agents on green patch)
+to move-agents
+
+  ask humans with [pcolor = green] [
+
+    ;; if agent is in panic buying mode and not in supermarket, food level doesn't decrease. straightaway head towards supermarket.
+    ifelse panic-buying? = true [
+      ifelse xcor < 0 [
+        set xcor xcor + 1
+        ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+      ]
+
+      [ set xcor xcor - 1
+        ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+      ]
+    ]
+
+    ;; if agent is not in panic buying mode, agent moving around as per normal.
+    [
+      ;; if agent's food level is less than 5 and not in supermarket, agent makes its way towards the supermarket.
+      ifelse food-level < 5 [
+        ifelse xcor < 0 [
+          set xcor xcor + 1
+          ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+        ]
+
+        [ set xcor xcor - 1
+          ifelse ycor < 0 [ set ycor ycor + 1 ] [ set ycor ycor - 1 ]
+        ]
+      ]
+
+      ;; if agent's food level is more than or equal to 5, agent moves as per normal randomly on the outside.
+      [
+        set food-level food-level - 1
+        move-to one-of outside-patches
+      ]
+    ]
+  ]
+
+end
+
+;; for moving agents that are in the supermarket (agents on blue patch)
+to check-supermarket
+
+  ask humans with [pcolor = blue] [
+    set buying-lag-count buying-lag-count + 1
+
+    ;; during first round of buying, agent buys item (2 units if normal, 10 units if panic buy)
+    (ifelse buying-lag-count = 1 [
+
+      ;; if agent is panic buying and in supermarket, increase food-level by 10.
+      ifelse panic-buying? = true [
+        set food-level food-level + 10
+        set total-food-bought total-food-bought + 10
+        move-to one-of supermarket-patches
+      ]
+
+      ;; if agent is not panic buying and in supermarket, increase food-level by 2.
+      ;; (try to research if there's any sense on how much more food people buy when they're panic buying vs. normal)
+      [ set food-level food-level + 2
+        set total-food-bought total-food-bought + 2
+      ]
+
+      ]
+
+      ;; during second round of buying, agent doesn't buy as it has already picked up items.
+      ;; this is to factor in buffer time for checkout and for agent to roam around supermarket
+      ;; for agents that are normal buying – this buffer time allows them to see if other agents are panic buying and influence them to panic buy as well.
+      buying-lag-count = 2 [
+        move-to one-of supermarket-patches
+      ]
+
+      ;; during third round of buying, agent checks out and leave supermarket. buying lag count resets
+      ;; for agents in panic buy mode, they will go back to non panic buying mode.
+      buying-lag-count = 3 [
+        move-to one-of outside-patches
+        set buying-lag-count 0
+        set panic-buying? false
+      ]
+    )
+  ]
 
 end
 
@@ -143,17 +237,23 @@ to set-influenced-factor
   ]
 end
 
-
 to trigger-panic-buy
 
-  ask humans [
+  ;; only trigger panic buying if humans are not in panic buying mode
+  ask humans with [panic-buying? = false] [
     let k random 11 / 10
-    ifelse k <= panic-buy-prob [ set panic-buying? true  ] [ set panic-buying? false]
+    ifelse k <= panic-buy-prob [ set panic-buying? true  ] [ set panic-buying? false ]
   ]
 
 end
 
+to-report food-bought-count
+  report total-food-bought
+end
 
+to-report num-panic-buying
+  report count humans with [panic-buying? = true]
+end
 
 
 
@@ -293,6 +393,28 @@ vision-radius
 1
 NIL
 HORIZONTAL
+
+MONITOR
+31
+310
+283
+355
+Total Food Bought across Supermarket
+food-bought-count
+0
+1
+11
+
+MONITOR
+32
+374
+358
+419
+Number of Agents that are in Panic Buying Mode
+num-panic-buying
+0
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
