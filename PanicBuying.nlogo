@@ -10,7 +10,7 @@ humans-own [
   panic-buying?
   ;; satisfaction   ;; implement later only if there's time
   num-relatives ;; number of links to other agents that are panic buying
-  num-radius ;; number of agents in vision radius that are panic buying
+  num-radius ;; number of agents in vision radius that are panic buying (Do we need this? This variable isn't used anywhere)
   relatives-factor
   radius-factor
   buying-lag-count
@@ -37,6 +37,8 @@ to setup
     move-to one-of outside-patches
     set food-level 10
     set panic-buying? false
+    let num random 5 ;; randomly determine number of close friends & family a human have
+    create-links-with n-of num other turtles ;; create the links with other humans
   ]
 
 end
@@ -44,12 +46,10 @@ end
 to go
   tick
 
-  set-influenced-factor ;; social factor – how easily an agent is to be influenced to panic buying (scale: 1-5)
-  set-perceived-scarcity ;; psychological factor – perceived scarcity of an agent (scale: 1-5)
-
-  ;; uncomment after implemented radius & relatives factor:
-  ;; set-relatives-factor ;; social factor – number of relatives that are panic buying (scale: 1-5)
-  ;; set-radius-factor ;; social factor – number of agents in its vision radius that are panic buying (scale: 1-5)
+  set-influenced-factor   ;; social factor – how easily an agent is to be influenced to panic buying (scale: 1-5)
+  set-perceived-scarcity   ;; psychological factor – perceived scarcity of an agent (scale: 1-5)
+  set-relatives-factor   ;; social factor – number of relatives that are panic buying (scale: 1-5)
+  set-radius-factor   ;; social factor – number of agents in its vision radius that are panic buying (scale: 1-5)
 
   compute-panic-buy-prob
 
@@ -98,7 +98,12 @@ to move-agents
       ;; if agent's food level is more than or equal to 5, agent moves as per normal randomly on the outside.
       [
         set food-level food-level - 1
-        move-to one-of outside-patches
+        ;; move-to one-of outside-patches
+        ;; commented away the above teleporting code for time being
+        while [[pcolor] of patch-ahead 1 = blue] [
+          rt one-of [0 90 180 270]
+        ]
+        fd 1   ;; currently each walking step is set to 1
       ]
     ]
   ]
@@ -133,7 +138,13 @@ to check-supermarket
       ;; this is to factor in buffer time for checkout and for agent to roam around supermarket
       ;; for agents that are normal buying – this buffer time allows them to see if other agents are panic buying and influence them to panic buy as well.
       buying-lag-count = 2 [
-        move-to one-of supermarket-patches
+        ;; move-to one-of supermarket-patches
+        ;; commented away the above teleporting code for time being
+        while [[pcolor] of patch-ahead 1 = green] [
+          rt one-of [0 90 180 270]
+        ]
+        fd 1   ;; currently each walking step is set to 1
+
       ]
 
       ;; during third round of buying, agent checks out and leave supermarket. buying lag count resets
@@ -153,7 +164,7 @@ to compute-panic-buy-prob
 
   ask humans [
 
-    let social-factors 1 / 3 * ( influenced-factor )  +  1 / 3 * ( relatives-factor ) +  1 / 3 * ( radius-factor )
+    let social-factors (1 / 3 * ( influenced-factor )  +  1 / 3 * ( relatives-factor ) +  1 / 3 * ( radius-factor ))
     let psychological-factors perceived-scarcity
 
     ( ifelse
@@ -173,35 +184,44 @@ to compute-panic-buy-prob
 end
 
 to set-relatives-factor
-
-  let max-num-relatives 0
-
   ask humans [
-
-    ;; find the max number of relatives across all agents
-
-    ;; compute relatives-factor
-    set relatives-factor num-relatives / max-num-relatives
-
+    let total-relatives 0   ;; total number of relatives for that agent
+    ask link-neighbors [
+      ifelse color = red [
+        set num-relatives (num-relatives + 1)
+        set total-relatives (total-relatives + 1)
+      ][
+        set total-relatives (total-relatives + 1)
+      ]
+    ]
+    ifelse total-relatives = 0 [   ;; prevent division by zero
+      set relatives-factor 0
+    ][
+      set relatives-factor ((num-relatives / total-relatives) * 5)   ;; compute relatives-factor, scaled to 5
+    ]
   ]
-
-
 end
 
 to set-radius-factor
-
-  let max-num-radius 0
-
   ask humans [
+    let total-people 0   ;; total number of people in the vision for that agent
+    let panic-people 0
+    ask humans in-radius vision-radius [
+      ifelse color = red [
+        set panic-people (panic-people + 1)
+        set total-people (total-people + 1)
+      ][
+        set total-people (total-people + 1)
+      ]
+    ]
+    ifelse total-people = 0 [
+      set radius-factor 0
+    ][
+      set radius-factor ((panic-people / total-people) * 5)   ;; compute radius-factor, scaled to 5
+    ]
 
-    ;; find the max number of agents in vision radius across all agents
-
-
-    ;; compute radius-factor
-    set radius-factor num-radius / max-num-radius
 
   ]
-
 end
 
 
@@ -254,7 +274,6 @@ end
 to-report num-panic-buying
   report count humans with [panic-buying? = true]
 end
-
 
 
 
