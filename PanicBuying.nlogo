@@ -11,7 +11,6 @@ humans-own [
   ;; satisfaction   ;; implement later only if there's time
   num-relatives ;; number of links to other agents that are panic buying
   num-radius ;; number of agents in vision radius that are panic buying (Do we need this? This variable isn't used anywhere)
-  relatives-factor
   radius-factor
   buying-lag-count
 ]
@@ -25,7 +24,7 @@ to setup
 
   ;; size of supermarket – 31 x 31
   ask patches [
-    ifelse pxcor >= -15  and pxcor <= 15 and pycor >= -15 and pycor <= 15
+    ifelse pxcor >= -8  and pxcor <= 8 and pycor >= -8 and pycor <= 8
     [ set pcolor blue ]
     [ set pcolor green ]
   ]
@@ -35,12 +34,11 @@ to setup
 
   ask humans [
     move-to one-of outside-patches
-    set food-level 10
+    set food-level random 50
     set panic-buying? false
-    let num random 5 ;; randomly determine number of close friends & family a human have
-    create-links-with n-of num other turtles ;; create the links with other humans
+    ;;let num random 3 ;; randomly determine number of close friends & family a human have
+    ;;create-links-with n-of num other turtles ;; create the links with other humans
   ]
-
 end
 
 to go
@@ -48,7 +46,6 @@ to go
 
   set-influenced-factor   ;; social factor – how easily an agent is to be influenced to panic buying (scale: 1-5)
   set-perceived-scarcity   ;; psychological factor – perceived scarcity of an agent (scale: 1-5)
-  set-relatives-factor   ;; social factor – number of relatives that are panic buying (scale: 1-5)
   set-radius-factor   ;; social factor – number of agents in its vision radius that are panic buying (scale: 1-5)
 
   compute-panic-buy-prob
@@ -60,7 +57,6 @@ to go
   move-agents
 
   check-supermarket
-
 
 end
 
@@ -121,15 +117,15 @@ to check-supermarket
 
       ;; if agent is panic buying and in supermarket, increase food-level by 10.
       ifelse panic-buying? = true [
-        set food-level food-level + 10
-        set total-food-bought total-food-bought + 10
+        set food-level (food-level + 10 * food-consumption)
+        set total-food-bought total-food-bought + 10 * food-consumption
         move-to one-of supermarket-patches
       ]
 
       ;; if agent is not panic buying and in supermarket, increase food-level by 2.
       ;; (try to research if there's any sense on how much more food people buy when they're panic buying vs. normal)
-      [ set food-level food-level + 2
-        set total-food-bought total-food-bought + 2
+      [ set food-level (food-level + 5 * food-consumption)
+        set total-food-bought total-food-bought + 5 * food-consumption
       ]
 
       ]
@@ -159,46 +155,22 @@ to check-supermarket
 
 end
 
-
 to compute-panic-buy-prob
-
   ask humans [
 
-    let social-factors (1 / 3 * ( influenced-factor )  +  1 / 3 * ( relatives-factor ) +  1 / 3 * ( radius-factor ))
+    let social-factors (0.5 * influenced-factor +  0.5 * 0.121 * radius-factor)
     let psychological-factors perceived-scarcity
 
     ( ifelse
-
       ;; if normal – affected by relatives & radius factor only
-      event-type = "normal" [ set panic-buy-prob 1 / 2 * relatives-factor + 1 / 2 * radius-factor ]
+      event-type = "normal" [ set panic-buy-prob (0.121 * radius-factor)]
 
-      ;; if rumour – 100% social factors
-      event-type = "rumour" [ set panic-buy-prob social-factors ]
+      ;; if rumour – 76.4% social factors
+      event-type = "rumour" [ set panic-buy-prob 0.764 * social-factors ]
 
       ;; if pandemic – 76.4% social factors 23.6% psychological factors
       event-type = "pandemic" [ set panic-buy-prob 0.764 * social-factors + 0.236 * psychological-factors ]
-
     )
-  ]
-
-end
-
-to set-relatives-factor
-  ask humans [
-    let total-relatives 0   ;; total number of relatives for that agent
-    ask link-neighbors [
-      ifelse color = red [
-        set num-relatives (num-relatives + 1)
-        set total-relatives (total-relatives + 1)
-      ][
-        set total-relatives (total-relatives + 1)
-      ]
-    ]
-    ifelse total-relatives = 0 [   ;; prevent division by zero
-      set relatives-factor 0
-    ][
-      set relatives-factor ((num-relatives / total-relatives) * 5)   ;; compute relatives-factor, scaled to 5
-    ]
   ]
 end
 
@@ -217,13 +189,12 @@ to set-radius-factor
     ifelse total-people = 0 [
       set radius-factor 0
     ][
-      set radius-factor ((panic-people / total-people) * 5)   ;; compute radius-factor, scaled to 5
+      set radius-factor (panic-people / total-people)   ;; compute radius-factor
     ]
 
 
   ]
 end
-
 
 ;; set the perceived-scarcity based on the paper by Hu
 ;; perceived-scarcity: how likely an individual will be influenced to panic buy given their perceived scarcity
@@ -232,11 +203,11 @@ to set-perceived-scarcity
   ask humans [
     let j random 11 / 10
     ( ifelse
-      j <= 0.256 [ set perceived-scarcity 1 / 5 ] ;; strongly disagree
-      j <= 0.443 [ set perceived-scarcity 2 / 5 ] ;; disagree
-      j <= 0.694 [ set perceived-scarcity 3 / 5 ] ;; neutral
-      j <= 0.875 [ set perceived-scarcity 4 / 5] ;; agree
-      j <= 1 [ set perceived-scarcity 5 / 5 ] ;; strongly agree
+      j <= 0.256 [ set perceived-scarcity 0 / 5 ] ;; strongly disagree
+      j <= 0.443 [ set perceived-scarcity 1 / 5 ] ;; disagree
+      j <= 0.694 [ set perceived-scarcity 2 / 5 ] ;; neutral
+      j <= 0.875 [ set perceived-scarcity 3 / 5] ;; agree
+      j <= 1 [ set perceived-scarcity 4 / 5 ] ;; strongly agree
     )
   ]
 end
@@ -248,11 +219,11 @@ to set-influenced-factor
   ask humans [
     let i random 11 / 10
     ( ifelse
-      i <= 0.324 [ set influenced-factor 1 / 5 ] ;; totally disagree
-      i <= 0.77 [ set influenced-factor 2 / 5] ;; disagree
-      i <= 0.839 [ set influenced-factor 3 / 5] ;; neutral
-      i <= 0.957 [ set influenced-factor 4 / 5] ;; agree
-      i <= 1 [ set influenced-factor 5 / 5] ;; totally agree
+      i <= 0.324 [ set influenced-factor 0 / 5 ] ;; totally disagree
+      i <= 0.77 [ set influenced-factor 1 / 5] ;; disagree
+      i <= 0.839 [ set influenced-factor 2 / 5] ;; neutral
+      i <= 0.957 [ set influenced-factor 3 / 5] ;; agree
+      i <= 1 [ set influenced-factor 4 / 5] ;; totally agree
     )
   ]
 end
@@ -261,10 +232,9 @@ to trigger-panic-buy
 
   ;; only trigger panic buying if humans are not in panic buying mode
   ask humans with [panic-buying? = false] [
-    let k random 11 / 10
+    let k random 1001 / 1000
     ifelse k <= panic-buy-prob [ set panic-buying? true  ] [ set panic-buying? false ]
   ]
-
 end
 
 to-report food-bought-count
@@ -274,17 +244,12 @@ end
 to-report num-panic-buying
   report count humans with [panic-buying? = true]
 end
-
-
-
-
-
 @#$#@#$#@
 GRAPHICS-WINDOW
-427
-19
-1153
-746
+363
+10
+1089
+737
 -1
 -1
 14.08
@@ -308,9 +273,9 @@ ticks
 30.0
 
 BUTTON
-24
+23
 22
-90
+89
 55
 NIL
 setup\n
@@ -325,9 +290,9 @@ NIL
 1
 
 BUTTON
-100
+99
 22
-163
+162
 55
 NIL
 go
@@ -359,65 +324,65 @@ NIL
 1
 
 CHOOSER
-27
-244
-165
-289
+16
+380
+154
+425
 event-type
 event-type
 "normal" "rumour" "pandemic"
-2
+0
 
 SLIDER
-27
-71
-272
-104
+21
+63
+266
+96
 human-popln
 human-popln
 0
 200
-100.0
+150.0
 5
 1
 NIL
 HORIZONTAL
 
 SLIDER
-28
-117
-200
-150
+22
+109
+194
+142
 food-consumption
 food-consumption
 1
 10
-7.0
+4.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-27
-169
-199
-202
+21
+161
+193
+194
 vision-radius
 vision-radius
 1
 20
-20.0
+4.0
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-31
-310
-283
-355
+17
+268
+269
+313
 Total Food Bought across Supermarket
 food-bought-count
 0
@@ -425,15 +390,33 @@ food-bought-count
 11
 
 MONITOR
-32
-374
-358
-419
+16
+325
+342
+370
 Number of Agents that are in Panic Buying Mode
 num-panic-buying
 0
 1
 11
+
+PLOT
+14
+435
+355
+586
+Number of panic buying agents
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count turtles with [color = red]"
 
 @#$#@#$#@
 ## WHAT IS IT?
