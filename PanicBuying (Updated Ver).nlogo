@@ -420,9 +420,8 @@ to set-fear-factor
   ]
 end
 
-
-
 ;; ---------------------------- UPDATE RADIUS FACTOR PROCEDURE ---------------------------- ;;
+;; agents that are not panic buying and are in supermarket
 to update-radius-factor
   let total-people count humans in-radius 4
   let panic-people 0
@@ -669,7 +668,7 @@ ration-limit
 ration-limit
 1
 10
-6.0
+3.0
 1
 1
 items
@@ -683,7 +682,7 @@ SLIDER
 restock-frequency
 restock-frequency
 1
-7
+14
 7.0
 1
 1
@@ -841,39 +840,42 @@ Number of Days (10 ticks = 1 Day)
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+The overarching goal of this NetLogo simulation is to observe the impacts of policy interventions on panic buying intent across the population. As such, our hypothesis is that the proportion of the entire population with the intent to panic buy will be reduced by 50% with the implementation of interventions by supermarket policymakers. We will address if our simulation has proved this hypothesis right in Section 7. Moreover, we can simulate different restock frequencies and quantities to determine how frequent supermarkets should be restocking the shelves to prevent the worsening of panic buying across the population. This allows supermarkets to better plan their resources and handle panic buying crises.  
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+Agent Variables 
+1. Perceived Scarcity (perceived-scarcity) [ Material Demand ]
+2. Influence from Nearby Panic Buying Agents (radius-factor) [ Emotional Panic ]
+3. Social Influence from Food Shortage News Online (social-factor) [ Emotional Panic ]
+4. Fear of Uncertainty (fear-factor) [ Emotional Panic ]
 
-## HOW TO USE IT
+Panic Buying Intent Probability 
+P(PBI) = 0.5 * (1/3 * Si + 1/3 Fi + 1/3 Ri ) + 0.5 * (PSi)
+where Si : Social Factor, Fi : Fear Factor, Ri : Radius Factor, PSi : Perceived Scarcity
 
-(how to use the model, including a description of each of the items in the Interface tab)
-
-## THINGS TO NOTICE
-
-(suggested things for the user to notice while running the model)
 
 ## THINGS TO TRY
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+1. Adjust intitial stock quantity, restock quantity and restock frequency to observe its impact on panic buying development across the population. 
+
+2. Adjust the rationing limit to determine the impact on stock levels and panic buying development across the population. 
+
+3. Select intervention type to determine the impacts on panic buying development for every combination of policy intervention. 
+
+## THINGS TO NOTICE
+
+A BehaviorSpace experiment was conducted to determine the varying impacts that the type of intervention has on panic buying. We observe that among the 4 intervention types, utilizing both rationing and assurance yielded the greatest effect as it managed to keep the number of panic buying agents relatively low compared to the other methods. The approach of rationing and assurance compared to having no interventions at all resulted in an approximate 85% decrease in the number of panic buying agents. This is much greater than the 50% decrease that our hypothesis predicted. Furthermore the restocking frequency is also varied. It is evident that the restocking frequency does indeed play an important role in the mitigation of panic buying, for instance in the “rationing” approach, there is a significant divergence in the number of panic buyers between the 3 and 7 day restocking frequency.
+
+Another BehaviorSpace experiment was conducted to monitor the stock levels across supermarkets, assuming that there are no restocks and rationing is limited to 3 goods to mimic the rationing policies across supermarkets in Singapore. 10 BehaviorSpace experiments were conducted and the average total stocks across all 4 shelves are monitored across all 10 experiments and visualized on the graph shown above. As we can see on the left, scarcity of goods in supermarkets happens much faster (within 20 ticks) when there are no interventions. However, when rationing and assurance are implemented, scarcity of goods happens at a much later time period (within 40 ticks). This suggests that the implementation of rationing and assurance is effective to slow down the depletion of goods at supermarkets to potentially prevent panic buying intent across the population to worsen. From this BehaviorSpace experiment, we are able to infer that should policymakers not decide to intervene, supermarkets should restock every 20 ticks (2 days)  to contain the spread of panic buying intent and prevent customers from spreading the news of shortage of goods at supermarkets. If policymakers were to intervene and implement assurance and rationing, they are recommended to restock supermarket goods every 40 ticks (4 days).
+
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+For simplicity, we assumed that all 4 item shelves are homogenous and agents are randomly allocated to an item shelf upon entering the supermarket to purchase the goods they desire. However, a possible extension of this model would be to implement item shelves for different foodstuff, to differentiate and analyze which goods are higher in demand during panic buying crises.
 
-## NETLOGO FEATURES
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
 
-## RELATED MODELS
-
-(models in the NetLogo Models Library and elsewhere which are of related interest)
-
-## CREDITS AND REFERENCES
-
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
 @#$#@#$#@
 default
 true
